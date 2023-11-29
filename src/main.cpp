@@ -8,7 +8,7 @@ DeviceAddress insideThermometer;
 // BLEUart bleuart; // uart over ble
 BLEDis bledis;
 BLEService filterService("479d422d-69a0-4e39-b4a4-130f8cbb280c");
-void startAdv(int temp);
+void startAdv(float temp);
 void connect_callback(uint16_t conn_handle);
 void disconnect_callback(uint16_t conn_handle, uint8_t reason);
 void BLEinit();
@@ -19,16 +19,30 @@ void addTempData(float =0.0 ,float =0.0);
 
 struct ATTR_PACKET
 {
-  uint8_t   mfid=0xFF;
-  uint32_t tempIce;
+  uint8_t singht;
+  uint32_t* tempIce;
 };
-void startAdv(int temp1,uint8_t id)
+void startAdv(float temp1)
 {  
+  Bluefruit.Advertising.clearData();
   ATTR_PACKET packet;
-    packet.tempIce=temp1;
+    if (temp1<0)
+    {
+      temp1*=-1;
+    int buffInt=temp1*100;
+    packet.singht=0x01;
+    packet.tempIce=reinterpret_cast<uint32_t*>(buffInt);
+    }
+    else
+    {
+    int buffInt=temp1*100;
+    packet.singht=0x02;
+    packet.tempIce=reinterpret_cast<uint32_t*>(buffInt);
+    }
+    
+    
     Serial.println();
     
-  Bluefruit.Advertising.addService(filterService);
   // Set Flag for discovery mode, optional 
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE);
   // Bluefruit.Advertising.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &adv_data, sizeof(adv_data));
@@ -126,32 +140,32 @@ void printAddress(DeviceAddress deviceAddress)
     Serial.print(deviceAddress[i], HEX);
   }
 }
-// void startAdv()
-// {
-//   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-//   Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_NONCONNECTABLE_SCANNABLE_UNDIRECTED);
+/*void startAdv()
+{
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+  Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_NONCONNECTABLE_SCANNABLE_UNDIRECTED);
 
-//   Bluefruit.Advertising.addTxPower();
-//   Bluefruit.ScanResponse.addName();
+  Bluefruit.Advertising.addTxPower();
+  Bluefruit.ScanResponse.addName();
 
-//   Bluefruit.Advertising.setInterval(64, 244);    // in unit of 0.625 ms
-//   Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
-// // }
-// void addTempData(float tempIceIn,float tempAirIn)
-// {
-  
-//     Bluefruit.Advertising.clearData();
-//     // BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA is 0xFF
-//     Bluefruit.Advertising.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &temp_packet, sizeof(temp_packet));
-//     Bluefruit.ScanResponse.clearData();
-//     Bluefruit.ScanResponse.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &temp_packet, sizeof(temp_packet));
-//   Bluefruit.Advertising.start(0);
+  Bluefruit.Advertising.setInterval(64, 244);    // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
 // }
+void addTempData(float tempIceIn,float tempAirIn)
+{
+  
+    Bluefruit.Advertising.clearData();
+    // BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA is 0xFF
+    Bluefruit.Advertising.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &temp_packet, sizeof(temp_packet));
+    Bluefruit.ScanResponse.clearData();
+    Bluefruit.ScanResponse.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &temp_packet, sizeof(temp_packet));
+  Bluefruit.Advertising.start(0);
+}*/
 
 void loop()
 {
-  int x=65222;
-  startAdv(x,1);
+  float x=-2.65;
+  startAdv(x);
   __WFE();
   __WFI();
   delay(10000);  // advertising period = 10s
