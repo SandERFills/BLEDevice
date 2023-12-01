@@ -1,43 +1,56 @@
 #include <bluefruit.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#define ONE_WARE_D 2
-OneWire oneWire(ONE_WARE_D);              // вход датчиков 18b20, аналоговый А1, он же 15 цифровой 
-DallasTemperature ds(&oneWire);    
+// ========> Macros define <=======
+#define BUS_PIN A0
+
+//========> Class define <=====
+OneWire wire=OneWire(BUS_PIN);
+DallasTemperature sensors= DallasTemperature(&wire);
 DeviceAddress insideThermometer;
 // BLEUart bleuart; // uart over ble
 BLEDis bledis;
-BLEService filterService("479d422d-69a0-4e39-b4a4-130f8cbb280c");
 void startAdv(float temp);
 void connect_callback(uint16_t conn_handle);
 void disconnect_callback(uint16_t conn_handle, uint8_t reason);
 void BLEinit();
-void printTemperature(DeviceAddress deviceAddress);
-void printAddress(DeviceAddress deviceAddress);
-void addTempData(float =0.0 ,float =0.0);
+void printTemperature(DeviceAddress insideThermometer);
+void printAddress(DeviceAddress insideThermometer);
 #include <bluefruit.h>
 
-struct ATTR_PACKET
+struct ADV_PACKET
 {
+  uint8_t id1=0x11;
+  uint8_t id2=0x36;
   uint8_t singht;
   uint32_t* tempIce;
 };
+struct SCNR_PACKET
+{
+  uint8_t id1=0x11;
+  uint8_t id2=0x36;
+
+};
+
 void startAdv(float temp1)
 {  
-  Bluefruit.Advertising.clearData();
-  ATTR_PACKET packet;
+  int buffInt;
+  Bluefruit.Advertising.clearData();  // refresh advertising data for each cycle
+  Bluefruit.ScanResponse.clearData();  // refresh scan response data for each cycle
+  SCNR_PACKET scnr_packet;
+  ADV_PACKET advr_packet;
     if (temp1<0)
     {
-      temp1*=-1;
-    int buffInt=temp1*100;
-    packet.singht=0x01;
-    packet.tempIce=reinterpret_cast<uint32_t*>(buffInt);
+    temp1*=-1;
+    buffInt=temp1*100;
+    advr_packet.singht=0x01;
+    advr_packet.tempIce=reinterpret_cast<uint32_t*>(buffInt);
     }
     else
     {
-    int buffInt=temp1*100;
-    packet.singht=0x02;
-    packet.tempIce=reinterpret_cast<uint32_t*>(buffInt);
+    buffInt=temp1*100;
+    advr_packet.singht=0x02;
+    advr_packet.tempIce=reinterpret_cast<uint32_t*>(buffInt);
     }
     
     
@@ -45,9 +58,8 @@ void startAdv(float temp1)
     
   // Set Flag for discovery mode, optional 
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE);
-  // Bluefruit.Advertising.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &adv_data, sizeof(adv_data));
-  Bluefruit.Advertising.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &packet, sizeof(packet));
-  // Bluefruit.ScanResponse.addData(0x22, &packet, sizeof(packet));
+  Bluefruit.Advertising.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &advr_packet, sizeof(advr_packet));
+  Bluefruit.ScanResponse.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &scnr_packet, sizeof(scnr_packet));
   Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_NONCONNECTABLE_SCANNABLE_UNDIRECTED);  // for XIAO BLE
 //  Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED);   // for mobile tool
   Bluefruit.Advertising.restartOnDisconnect(true);
@@ -71,66 +83,29 @@ void setup()
 
   // BLEinit();
   // startAdv();
-    if (ds.isParasitePowerMode()) Serial.println("ON");
+  Serial.print("Locating devices...");
+  sensors.begin();
+  Serial.print("Found ");
+  Serial.print(sensors.getDeviceCount(), DEC);
+  Serial.println(" devices.");
+
+  // report parasite power requirements
+  Serial.print("Parasite power is: ");
+  if (sensors.isParasitePowerMode()) Serial.println("ON");
   else Serial.println("OFF");
-  // Assign address manually. The addresses below will need to be changed
-  // to valid device addresses on your bus. Device address can be retrieved
-  // by using either oneWire.search(deviceAddress) or individually via
-  // sensors.getAddress(deviceAddress, index)
-  // Note that you will need to use your specific address here
-  //insideThermometer = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 };
 
-  // Method 1:
-  // Search for devices on the bus and assign based on an index. Ideally,
-  // you would do this to initially discover addresses on the bus and then
-  // use those addresses and manually assign them (see above) once you know
-  // the devices on your bus (and assuming they don't change).
-  if (!ds.getAddress(insideThermometer, 0)) Serial.println("Unable to find address for Device 0");
+  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find address for Device 0");
 
-  // method 2: search()
-  // search() looks for the next device. Returns 1 if a new address has been
-  // returned. A zero might mean that the bus is shorted, there are no devices,
-  // or you have already retrieved all of them. It might be a good idea to
-  // check the CRC to make sure you didn't get garbage. The order is
-  // deterministic. You will always get the same devices in the same order
-  //
-  // Must be called before search()
-  //oneWire.reset_search();
-  // assigns the first address found to insideThermometer
-  //if (!oneWire.search(insideThermometer)) Serial.println("Unable to find address for insideThermometer");
+  Serial.print("Device 0 Address: ");
+  printAddress(insideThermometer);
+  Serial.println();
 
-  // show the addresses we found on the bus
-  // Serial.print("Device 0 Address: ");
-  // printAddress(insideThermometer);
-  // Serial.println();
+  // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
+  sensors.setResolution(insideThermometer, 12);
 
-  // // set the resolution to 9 bit (Each Dallas/Maxim device is capable of several different resolutions)
-  // ds.setResolution(insideThermometer, 12);
-
-  // Serial.print("Device 0 Resolution: ");
-  // Serial.print(ds.getResolution(insideThermometer), DEC);
-  // Serial.println();
-}
-// function to print the temperature for a device
-void printTemperature(DeviceAddress deviceAddress)
-{
-  // method 1 - slower
-  //Serial.print("Temp C: ");
-  //Serial.print(sensors.getTempC(deviceAddress));
-  //Serial.print(" Temp F: ");
-  //Serial.print(sensors.getTempF(deviceAddress)); // Makes a second call to getTempC and then converts to Fahrenheit
-
-  // method 2 - faster
-  float tempC = ds.getTempC(deviceAddress);
-  if (tempC == DEVICE_DISCONNECTED_C)
-  {
-    Serial.println("Error: Could not read temperature data");
-    return;
-  }
-  Serial.print("Temp C: ");
-  Serial.print(tempC);
-  Serial.print(" Temp F: ");
-  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+  Serial.print("Device 0 Resolution: ");
+  Serial.print(sensors.getResolution(insideThermometer), DEC);
+  Serial.println();
 }
 void printAddress(DeviceAddress deviceAddress)
 {
@@ -140,56 +115,21 @@ void printAddress(DeviceAddress deviceAddress)
     Serial.print(deviceAddress[i], HEX);
   }
 }
-/*void startAdv()
-{
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_NONCONNECTABLE_SCANNABLE_UNDIRECTED);
-
-  Bluefruit.Advertising.addTxPower();
-  Bluefruit.ScanResponse.addName();
-
-  Bluefruit.Advertising.setInterval(64, 244);    // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
-// }
-void addTempData(float tempIceIn,float tempAirIn)
-{
-  
-    Bluefruit.Advertising.clearData();
-    // BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA is 0xFF
-    Bluefruit.Advertising.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &temp_packet, sizeof(temp_packet));
-    Bluefruit.ScanResponse.clearData();
-    Bluefruit.ScanResponse.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &temp_packet, sizeof(temp_packet));
-  Bluefruit.Advertising.start(0);
-}*/
 
 void loop()
 {
-  float x=-2.65;
-  startAdv(x);
+
+  Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); 
+  Serial.println("DONE");
+
+  float tempC =   sensors.getTempCByIndex(0);        
+
+  startAdv(tempC);
   __WFE();
   __WFI();
   delay(10000);  // advertising period = 10s
-  Bluefruit.Advertising.clearData();  // refresh advertising data for each cycle
-  Bluefruit.ScanResponse.clearData();  // refresh scan response data for each cycle
 
-//   ds.requestTemperatures();                               // считываем температуру с датчиков, на это требуется 750мс
-  
-//   Serial.print("Sensor 0: ");
-//  float tempIce =   ds.getTempCByIndex(0);        
-//     addTempData(tempIce+1);                                          // отправляем температуру
-// char tempChr[6];
-//   snprintf(tempChr,6,"%f",tempIce);
-//  printTemperature(insideThermometer); // Use a simple function to print out the data
-//   if (Bluefruit.connected())
-//   {
-//     Serial.println("Connected,sending notification");
-//     es_chr.notify(&tempChr,sizeof(tempChr));
-//   }
-//   else
-//   {
-//     Serial.println("Not connected");
-//   }
-    
 }
 
 // callback invoked when central connects
