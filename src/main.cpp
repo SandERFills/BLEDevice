@@ -24,6 +24,7 @@ struct ADV_PACKET
   uint8_t id2=0x36;
   uint8_t singht;
   uint32_t* tempIce;
+  uint8_t id=0x03;
 };
 struct SCNR_PACKET
 {
