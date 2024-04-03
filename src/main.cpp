@@ -37,7 +37,7 @@ void startAdv(float temp1)
 {  
   int buffInt;
   Bluefruit.Advertising.clearData();  // refresh advertising data for each cycle
-  Bluefruit.ScanResponse.clearData();  // refresh scan response data for each cycle
+  // Bluefruit.ScanResponse.clearData();  // refresh scan response data for each cycle
   SCNR_PACKET scnr_packet;
   ADV_PACKET advr_packet;
     if (temp1<0)
@@ -58,15 +58,15 @@ void startAdv(float temp1)
     Serial.println();
     
   // Set Flag for discovery mode, optional 
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE);
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &advr_packet, sizeof(advr_packet));
-  Bluefruit.ScanResponse.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &scnr_packet, sizeof(scnr_packet));
+  // Bluefruit.ScanResponse.addData(BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA, &scnr_packet, sizeof(scnr_packet));
   Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_NONCONNECTABLE_SCANNABLE_UNDIRECTED);  // for XIAO BLE
 //  Bluefruit.Advertising.setType(BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED);   // for mobile tool
-  Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setIntervalMS(100, 100);    // in unit of ms
+  Bluefruit.Advertising.restartOnDisconnect(false);
+  Bluefruit.Advertising.setIntervalMS(20, 100);     // in unit of ms
   Bluefruit.Advertising.setFastTimeout(1);          // number of seconds in fast mode
-  Bluefruit.Advertising.start(1);                   // stop advertising after 1 seconds
+  Bluefruit.Advertising.start(10);                   // stop advertising after 1 seconds
 }
 
 // arrays to hold device address
@@ -124,8 +124,8 @@ void loop()
   sensors.requestTemperatures(); 
   Serial.println("DONE");
 
-  float tempC =   sensors.getTempCByIndex(0);        
-
+  float tempC =   sensors.getTempCByIndex(0);
+  Serial.print(tempC);
   startAdv(tempC);
   __WFE();
   __WFI();
